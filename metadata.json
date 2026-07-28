@@ -1,0 +1,6 @@
+{
+  "name": "E-Surat Digital",
+  "description": "Aplikasi manajemen surat menyurat digital dengan fitur pencatatan surat masuk, nomor agenda kendali, surat keluar, disposisi pimpinan, serta penyimpanan perubahan permanen.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
