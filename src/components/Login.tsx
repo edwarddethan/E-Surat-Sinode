@@ -234,19 +234,25 @@ export default function Login({ onLoginSuccess, users = STAFF_LIST }: LoginProps
           <div className="pt-4 border-t border-slate-100 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
-                Akun Terdaftar Untuk Login:
+                Akun Terdaftar ({users.length}):
               </span>
               <span className="text-[10px] text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full">
-                {activeUsers.length} Akun Aktif
+                {activeUsers.length} Aktif
               </span>
             </div>
 
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1 text-left">
-              {activeUsers.map((u) => {
+              {users.map((u) => {
+                const userStatus = u.status || 'AKTIF';
                 const roleBadgeClass = 
                   u.role === 'ADMIN' ? 'bg-purple-100 text-purple-800 border-purple-200' :
                   u.role === 'PIMPINAN' ? 'bg-amber-100 text-amber-800 border-amber-200' :
                   'bg-indigo-100 text-indigo-800 border-indigo-200';
+
+                const statusBadgeClass =
+                  userStatus === 'AKTIF'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-rose-50 text-rose-700 border-rose-200';
 
                 return (
                   <button
@@ -255,30 +261,45 @@ export default function Login({ onLoginSuccess, users = STAFF_LIST }: LoginProps
                     onClick={() => {
                       setUsername(u.username || u.name);
                       setPassword(u.password || 'password123');
-                      setError('');
+                      if (userStatus === 'NON_AKTIF') {
+                        setError(`Akun "${u.name}" berstatus NON-AKTIF. Silakan hubungi Administrator untuk mengaktifkannya.`);
+                      } else {
+                        setError('');
+                      }
                     }}
-                    className="w-full text-left p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-indigo-50/50 hover:border-indigo-300 transition group cursor-pointer flex items-center justify-between gap-2"
+                    className={`w-full text-left p-2.5 rounded-xl border transition group cursor-pointer flex items-center justify-between gap-2 ${
+                      userStatus === 'AKTIF'
+                        ? 'border-slate-200 bg-slate-50/70 hover:bg-indigo-50/50 hover:border-indigo-300'
+                        : 'border-rose-100 bg-rose-50/30 hover:bg-rose-50/70 hover:border-rose-300 opacity-80'
+                    }`}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 mb-0.5">
+                      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                         <span className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-700 transition">
                           {u.name}
                         </span>
                         <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded border ${roleBadgeClass}`}>
                           {u.role}
                         </span>
+                        <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded border ${statusBadgeClass}`}>
+                          {userStatus}
+                        </span>
                       </div>
                       <div className="text-[10px] text-slate-500 font-medium truncate">
                         {u.title}
                       </div>
-                      <div className="text-[10px] font-mono text-slate-600 mt-1 flex items-center gap-2">
-                        <span>User: <strong className="text-slate-900">{u.username}</strong></span>
+                      <div className="text-[10px] font-mono text-slate-600 mt-1 flex items-center gap-2 flex-wrap">
+                        <span>User: <strong className="text-slate-900">{u.username || '-'}</strong></span>
                         <span>•</span>
                         <span>Pass: <strong className="text-slate-900">{u.password || 'password123'}</strong></span>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold text-indigo-600 bg-white border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white px-2 py-1 rounded-lg transition shrink-0">
-                      Gunakan
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg transition shrink-0 ${
+                      userStatus === 'AKTIF'
+                        ? 'text-indigo-600 bg-white border border-indigo-200 group-hover:bg-indigo-600 group-hover:text-white'
+                        : 'text-rose-600 bg-white border border-rose-200 group-hover:bg-rose-600 group-hover:text-white'
+                    }`}>
+                      {userStatus === 'AKTIF' ? 'Gunakan' : 'Pilih'}
                     </span>
                   </button>
                 );

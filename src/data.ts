@@ -192,5 +192,11 @@ export const INITIAL_MENU_PERMISSIONS: MenuPermission[] = [
     label: 'Cadangan Google Drive',
     description: 'Hubungkan akun Google Drive untuk mencadangkan seluruh data arsip Surat Masuk & Surat Keluar ke cloud.',
     roles: ['ADMIN', 'PIMPINAN', 'STAF']
+  },
+  {
+    menuId: 'save-changes',
+    label: 'Simpan Perubahan Permanen',
+    description: 'Akses ke tombol Simpan Perubahan untuk menyinkronkan seluruh data surat, akun, dan hak akses ke penyimpanan permanen.',
+    roles: ['ADMIN', 'PIMPINAN', 'STAF']
   }
 ];

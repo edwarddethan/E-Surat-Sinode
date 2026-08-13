@@ -19,7 +19,8 @@ import {
   Sparkles,
   X,
   Eye,
-  Edit2
+  Edit2,
+  Trash2
 } from 'lucide-react';
 
 interface DisposisiListProps {
@@ -31,6 +32,7 @@ interface DisposisiListProps {
     status: StatusTindakLanjut, 
     catatan?: string
   ) => void;
+  onDeleteDisposisi?: (suratId: string, disposisiId: string) => void;
   users?: User[];
   onAddSuratKeluar?: (newSurat: SuratKeluar) => void;
 }
@@ -39,6 +41,7 @@ export default function DisposisiList({
   suratMasukList,
   currentUser,
   onUpdateDisposisiStatus,
+  onDeleteDisposisi,
   users = STAFF_LIST,
   onAddSuratKeluar
 }: DisposisiListProps) {
@@ -49,6 +52,19 @@ export default function DisposisiList({
   // Modal states
   const [selectedDispForDetails, setSelectedDispForDetails] = useState<{ disp: Disposisi; letter: SuratMasuk } | null>(null);
   const [selectedDispForUpdate, setSelectedDispForUpdate] = useState<{ disp: Disposisi; letter: SuratMasuk } | null>(null);
+  const [dispToDelete, setDispToDelete] = useState<{ disp: Disposisi; letter: SuratMasuk } | null>(null);
+
+  const handleDeleteConfirm = () => {
+    if (!dispToDelete || !onDeleteDisposisi) return;
+    onDeleteDisposisi(dispToDelete.letter.id, dispToDelete.disp.id);
+    if (selectedDispForDetails?.disp.id === dispToDelete.disp.id) {
+      setSelectedDispForDetails(null);
+    }
+    if (selectedDispForUpdate?.disp.id === dispToDelete.disp.id) {
+      setSelectedDispForUpdate(null);
+    }
+    setDispToDelete(null);
+  };
   
   // Appoint staff state variables
   const [selectedDispForAppoint, setSelectedDispForAppoint] = useState<{ disp: Disposisi; letter: SuratMasuk } | null>(null);
@@ -529,6 +545,17 @@ export default function DisposisiList({
                               <span>Proses Surat</span>
                             </button>
                           )}
+
+                          {/* Delete Disposisi button */}
+                          {onDeleteDisposisi && (
+                            <button
+                              onClick={() => setDispToDelete(item)}
+                              className="p-1.5 bg-white text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg border border-slate-200 hover:border-rose-200 transition duration-150 cursor-pointer"
+                              title="Hapus Disposisi"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
 
@@ -676,7 +703,17 @@ export default function DisposisiList({
 
             </div>
 
-            <div className="p-5 border-t border-slate-100 flex justify-end bg-slate-50">
+            <div className="p-5 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+              {onDeleteDisposisi ? (
+                <button
+                  type="button"
+                  onClick={() => setDispToDelete(activeDetailData)}
+                  className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-xl border border-rose-200 transition duration-150 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Hapus Disposisi Ini</span>
+                </button>
+              ) : <div />}
               <button
                 onClick={() => setSelectedDispForDetails(null)}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition duration-150 cursor-pointer"
@@ -1006,6 +1043,61 @@ export default function DisposisiList({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KONFIRMASI HAPUS DISPOSISI */}
+      {dispToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/45 backdrop-blur-xs" onClick={() => setDispToDelete(null)} />
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden relative z-10 p-6 space-y-4 animate-scale-up">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="p-3 bg-rose-50 rounded-full border border-rose-100 shrink-0">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-heading font-extrabold text-slate-900 text-base">Hapus Disposisi Surat</h3>
+                <p className="text-xs text-slate-500">Tindakan ini akan menghapus catatan disposisi ini secara permanen.</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs space-y-1.5">
+              <p className="text-slate-600">
+                <strong className="text-slate-800">No. Surat:</strong> {dispToDelete.letter.noSurat}
+              </p>
+              <p className="text-slate-600">
+                <strong className="text-slate-800">Perihal:</strong> {dispToDelete.letter.perihal}
+              </p>
+              <p className="text-slate-600">
+                <strong className="text-slate-800">Penerima Disposisi:</strong> {users.find(u => u.id === dispToDelete.disp.penerimaId)?.title || 'Staf Pelaksana'}
+              </p>
+              <p className="text-slate-600 italic">
+                <strong className="text-slate-800 not-italic">Instruksi:</strong> "{dispToDelete.disp.instruksi}"
+              </p>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Apakah Anda yakin ingin menghapus data disposisi ini?
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDispToDelete(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl cursor-pointer flex items-center gap-1.5 shadow-sm transition"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Ya, Hapus Disposisi</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

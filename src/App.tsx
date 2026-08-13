@@ -43,7 +43,8 @@ import {
   UserCheck,
   Check,
   Key,
-  HardDrive
+  HardDrive,
+  Save
 } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY_MASUK = 'esurat_data_masuk_v1';
@@ -80,15 +81,37 @@ export default function App() {
   const [editProfileNip, setEditProfileNip] = useState('');
   const [editProfilePassword, setEditProfilePassword] = useState('');
   const [editProfileRole, setEditProfileRole] = useState<UserRole>('ADMIN');
+  const [editProfileStatus, setEditProfileStatus] = useState<'AKTIF' | 'NON_AKTIF'>('AKTIF');
   const [profileSuccessMsg, setProfileSuccessMsg] = useState<string | null>(null);
+  const [saveSuccessToast, setSaveSuccessToast] = useState<string | null>(null);
+
+  const handleSaveAllChanges = () => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_MASUK, JSON.stringify(suratMasuk));
+      localStorage.setItem(LOCAL_STORAGE_KEY_KELUAR, JSON.stringify(suratKeluar));
+      localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(users));
+      localStorage.setItem(LOCAL_STORAGE_KEY_PERMISSIONS, JSON.stringify(menuPermissions));
+      localStorage.setItem(LOCAL_STORAGE_KEY_USER, JSON.stringify(currentUser));
+      localStorage.setItem(LOCAL_STORAGE_KEY_AUTH, JSON.stringify(isLoggedIn));
+
+      setSaveSuccessToast('Seluruh perubahan data, surat, pengguna, dan konfigurasi telah disimpan secara permanen!');
+      setTimeout(() => {
+        setSaveSuccessToast(null);
+      }, 4000);
+    } catch (err) {
+      console.error('Save error:', err);
+      alert('Gagal menyimpan perubahan ke penyimpanan lokal.');
+    }
+  };
 
   const handleOpenProfileModal = () => {
     setEditProfileName(currentUser.name || '');
-    setEditProfileTitle(currentUser.title || currentUser.jabatan || '');
+    setEditProfileTitle(currentUser.title || (currentUser as any).jabatan || '');
     setEditProfileUsername(currentUser.username || '');
     setEditProfileNip(currentUser.nip || '');
     setEditProfilePassword(currentUser.password || '');
     setEditProfileRole(currentUser.role || 'ADMIN');
+    setEditProfileStatus(currentUser.status || 'AKTIF');
     setProfileSuccessMsg(null);
     setIsProfileModalOpen(true);
   };
@@ -105,10 +128,11 @@ export default function App() {
       nip: editProfileNip.trim(),
       password: editProfilePassword.trim() || currentUser.password || 'password123',
       role: editProfileRole,
+      status: editProfileStatus,
     };
 
     handleUpdateUser(updatedUser);
-    setProfileSuccessMsg('Nama, role, dan profil Anda berhasil disimpan secara permanen!');
+    setProfileSuccessMsg('Username, nama lengkap, password, role, dan status berhasil disimpan secara permanen!');
     setTimeout(() => {
       setProfileSuccessMsg(null);
       setIsProfileModalOpen(false);
@@ -153,14 +177,32 @@ export default function App() {
       localStorage.setItem(LOCAL_STORAGE_KEY_KELUAR, JSON.stringify(INITIAL_SURAT_KELUAR));
     }
 
-    // Load Users
+    // Load Users (Username, Name, Password, Role, Status)
     const savedUsers = localStorage.getItem(LOCAL_STORAGE_KEY_USERS);
     let loadedUsers = STAFF_LIST;
     if (savedUsers) {
       try {
         const parsed: User[] = JSON.parse(savedUsers);
-        loadedUsers = parsed;
-        setUsers(loadedUsers);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          loadedUsers = parsed.map(p => {
+            const defaultUser = STAFF_LIST.find(s => s.id === p.id);
+            return {
+              id: p.id,
+              name: p.name || defaultUser?.name || 'Pegawai Sinode GMIT',
+              username: p.username || defaultUser?.username || p.id,
+              password: p.password || defaultUser?.password || 'password123',
+              role: p.role || defaultUser?.role || 'STAF',
+              status: p.status || defaultUser?.status || 'AKTIF',
+              title: p.title || defaultUser?.title || 'Pegawai Sinode GMIT',
+              nip: p.nip || defaultUser?.nip || '',
+              avatar: p.avatar || defaultUser?.avatar,
+            };
+          });
+          setUsers(loadedUsers);
+        } else {
+          setUsers(STAFF_LIST);
+          localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(STAFF_LIST));
+        }
       } catch (e) {
         setUsers(STAFF_LIST);
         localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(STAFF_LIST));
@@ -174,7 +216,13 @@ export default function App() {
     const savedPermissions = localStorage.getItem(LOCAL_STORAGE_KEY_PERMISSIONS);
     if (savedPermissions) {
       try {
-        setMenuPermissions(JSON.parse(savedPermissions));
+        const parsed: MenuPermission[] = JSON.parse(savedPermissions);
+        // Ensure all INITIAL_MENU_PERMISSIONS exist in setMenuPermissions
+        const mergedPermissions = INITIAL_MENU_PERMISSIONS.map(initial => {
+          const found = parsed.find(p => p.menuId === initial.menuId);
+          return found || initial;
+        });
+        setMenuPermissions(mergedPermissions);
       } catch (e) {
         setMenuPermissions(INITIAL_MENU_PERMISSIONS);
       }
@@ -370,6 +418,20 @@ export default function App() {
         return {
           ...sm,
           disposisi: updatedDisposisi
+        };
+      }
+      return sm;
+    });
+    saveSuratMasuk(updated);
+  };
+
+  // Delete Disposition from Incoming Letter
+  const handleDeleteDisposisi = (suratId: string, disposisiId: string) => {
+    const updated = suratMasuk.map(sm => {
+      if (sm.id === suratId && sm.disposisi) {
+        return {
+          ...sm,
+          disposisi: sm.disposisi.filter(disp => disp.id !== disposisiId)
         };
       }
       return sm;
@@ -604,6 +666,20 @@ export default function App() {
                 </button>
               )}
 
+              {/* Simpan Perubahan Permanen Button */}
+              {hasMenuAccess('save-changes') && (
+                <div className="pt-2 border-t border-slate-100">
+                  <button
+                    onClick={handleSaveAllChanges}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-md transition cursor-pointer"
+                    title="Simpan seluruh data ke memori lokal secara permanen"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>Simpan Perubahan</span>
+                  </button>
+                </div>
+              )}
+
               {/* Logout Button */}
               <button
                 onClick={() => {
@@ -700,8 +776,19 @@ export default function App() {
                 </p>
               </div>
               
-              {/* Right Side: Active Session Info & Notification Bell */}
-              <div className="hidden md:flex items-center gap-4 border-l border-slate-200 pl-5">
+              {/* Right Side: Save Changes Button, Active Session Info & Notification Bell */}
+              <div className="hidden md:flex items-center gap-3 border-l border-slate-200 pl-4">
+                {hasMenuAccess('save-changes') && (
+                  <button
+                    onClick={handleSaveAllChanges}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+                    title="Klik untuk menyimpan seluruh perubahan data secara permanen"
+                  >
+                    <Save className="h-4 w-4 shrink-0" />
+                    <span>Simpan Perubahan</span>
+                  </button>
+                )}
+
                 <NotificationCenter 
                   suratMasukList={suratMasuk} 
                   suratKeluarList={suratKeluar} 
@@ -746,6 +833,7 @@ export default function App() {
                 onAddSuratMasuk={handleAddSuratMasuk}
                 onUpdateSuratMasuk={handleUpdateSuratMasuk}
                 onAddDisposisi={handleAddDisposisi}
+                onDeleteDisposisi={handleDeleteDisposisi}
                 onDeleteSuratMasuk={handleDeleteSuratMasuk}
                 selectLetterForDisposisi={selectedLetterForDisposisi}
                 clearSelectedLetterForDisposisi={handleClearSelectedLetterForDisposisi}
@@ -771,6 +859,7 @@ export default function App() {
                 suratMasukList={suratMasuk}
                 currentUser={currentUser}
                 onUpdateDisposisiStatus={handleUpdateDisposisiStatus}
+                onDeleteDisposisi={handleDeleteDisposisi}
                 users={users}
                 onAddSuratKeluar={handleAddSuratKeluar}
               />
@@ -953,6 +1042,20 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Status Akun <span className="text-red-500">*</span></label>
+                  <select
+                    value={editProfileStatus}
+                    onChange={(e) => setEditProfileStatus(e.target.value as 'AKTIF' | 'NON_AKTIF')}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
+                  >
+                    <option value="AKTIF">AKTIF (Dapat Login)</option>
+                    <option value="NON_AKTIF">NON_AKTIF (Diarsipkan)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700">Username <span className="text-red-500">*</span></label>
                   <input
                     type="text"
@@ -962,24 +1065,11 @@ export default function App() {
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-mono text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">NIP (Opsional)</label>
-                  <input
-                    type="text"
-                    value={editProfileNip}
-                    onChange={(e) => setEditProfileNip(e.target.value)}
-                    placeholder="1978..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-mono text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  />
-                </div>
 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
                     <Key className="h-3.5 w-3.5 text-indigo-600" />
-                    <span>Kata Sandi / Password</span>
+                    <span>Kata Sandi / Password <span className="text-red-500">*</span></span>
                   </label>
                   <input
                     type="text"
@@ -989,6 +1079,17 @@ export default function App() {
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-mono text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">NIP (Opsional)</label>
+                <input
+                  type="text"
+                  value={editProfileNip}
+                  onChange={(e) => setEditProfileNip(e.target.value)}
+                  placeholder="1978..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-mono text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
@@ -1008,6 +1109,20 @@ export default function App() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* FLOATING SAVE SUCCESS TOAST NOTIFICATION */}
+      {saveSuccessToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-slide-up">
+          <Check className="h-5 w-5 text-emerald-400 shrink-0 animate-bounce" />
+          <span className="text-xs font-semibold text-slate-100">{saveSuccessToast}</span>
+          <button 
+            onClick={() => setSaveSuccessToast(null)} 
+            className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white cursor-pointer ml-2"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 

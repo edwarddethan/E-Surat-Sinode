@@ -31,6 +31,7 @@ interface SuratMasukListProps {
   onAddSuratMasuk: (newSurat: SuratMasuk) => void;
   onUpdateSuratMasuk?: (updatedSurat: SuratMasuk) => void;
   onAddDisposisi: (suratId: string, disposisi: Disposisi) => void;
+  onDeleteDisposisi?: (suratId: string, disposisiId: string) => void;
   onDeleteSuratMasuk?: (id: string) => void;
   selectLetterForDisposisi: SuratMasuk | null;
   clearSelectedLetterForDisposisi: () => void;
@@ -44,6 +45,7 @@ export default function SuratMasukList({
   onAddSuratMasuk,
   onUpdateSuratMasuk,
   onAddDisposisi,
+  onDeleteDisposisi,
   onDeleteSuratMasuk,
   selectLetterForDisposisi,
   clearSelectedLetterForDisposisi,
@@ -53,6 +55,7 @@ export default function SuratMasukList({
   
   // UI States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [dispToDelete, setDispToDelete] = useState<{ dispId: string; letterId: string; instruksi: string } | null>(null);
   const [selectedLetter, setSelectedLetter] = useState<SuratMasuk | null>(null);
   const [letterToDelete, setLetterToDelete] = useState<SuratMasuk | null>(null);
   const [fileToPreview, setFileToPreview] = useState<SuratMasuk | null>(null);
@@ -1354,15 +1357,27 @@ export default function SuratMasukList({
                                 <ArrowRight className="h-3 w-3 text-slate-400" />
                                 <span className="font-bold text-indigo-700">{receiver?.title}</span>
                               </div>
-                              <span className={`px-2 py-0.5 rounded-md font-bold border ${
-                                disp.status === 'SELESAI' 
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                                  : disp.status === 'SEDANG_DIPROSES' 
-                                  ? 'bg-amber-50 text-amber-700 border-amber-100' 
-                                  : 'bg-red-50 text-red-700 border-red-100'
-                              }`}>
-                                {disp.status.replace('_', ' ')}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className={`px-2 py-0.5 rounded-md font-bold border ${
+                                  disp.status === 'SELESAI' 
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                                    : disp.status === 'SEDANG_DIPROSES' 
+                                    ? 'bg-amber-50 text-amber-700 border-amber-100' 
+                                    : 'bg-red-50 text-red-700 border-red-100'
+                                }`}>
+                                  {disp.status.replace('_', ' ')}
+                                </span>
+                                {onDeleteDisposisi && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setDispToDelete({ dispId: disp.id, letterId: selectedLetter.id, instruksi: disp.instruksi })}
+                                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition duration-150 cursor-pointer"
+                                    title="Hapus disposisi ini"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             <p className="text-xs text-slate-600 bg-white p-2 border border-slate-100 rounded-lg italic">
@@ -2109,6 +2124,66 @@ export default function SuratMasukList({
             Arsip Digital Tersertifikasi • Cetak dengan tombol pencetak di atas atau klik unduh untuk file .pdf asli
           </div>
 
+        </div>
+      )}
+
+      {/* MODAL KONFIRMASI HAPUS DISPOSISI */}
+      {dispToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/45 backdrop-blur-xs" onClick={() => setDispToDelete(null)} />
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden relative z-10 p-6 space-y-4 animate-scale-up">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="p-3 bg-rose-50 rounded-full border border-rose-100 shrink-0">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-heading font-extrabold text-slate-900 text-base">Hapus Disposisi Surat</h3>
+                <p className="text-xs text-slate-500">Tindakan ini akan menghapus catatan disposisi ini secara permanen.</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs space-y-1.5">
+              <p className="text-slate-600 italic">
+                <strong className="text-slate-800 not-italic">Instruksi:</strong> "{dispToDelete.instruksi}"
+              </p>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Apakah Anda yakin ingin menghapus instruksi disposisi ini dari surat masuk?
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDispToDelete(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDeleteDisposisi) {
+                    onDeleteDisposisi(dispToDelete.letterId, dispToDelete.dispId);
+                    if (selectedLetter && selectedLetter.id === dispToDelete.letterId) {
+                      setSelectedLetter(prev => {
+                        if (!prev) return null;
+                        return {
+                          ...prev,
+                          disposisi: prev.disposisi?.filter(d => d.id !== dispToDelete.dispId)
+                        };
+                      });
+                    }
+                  }
+                  setDispToDelete(null);
+                }}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl cursor-pointer flex items-center gap-1.5 shadow-sm transition"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Ya, Hapus Disposisi</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
