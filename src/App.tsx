@@ -46,6 +46,7 @@ import {
   HardDrive,
   Save
 } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 
 const LOCAL_STORAGE_KEY_MASUK = 'esurat_data_masuk_v1';
 const LOCAL_STORAGE_KEY_KELUAR = 'esurat_data_keluar_v1';
@@ -1126,6 +1127,7 @@ export default function App() {
         </div>
       )}
 
+      <Analytics />
     </div>
   );
 }
